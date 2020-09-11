@@ -26,7 +26,6 @@ pixellib==0.3.0
 scikit-image==0.16.2
 sympy==1.6.2
 tensorboard==2.2.1
-tensorboard-plugin-wit==1.6.0
 tensorflow==2.0.0
 tensorflow-estimator==2.0.0
 Werkzeug==0.16.1
