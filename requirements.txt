@@ -66,7 +66,6 @@ prompt-toolkit==3.0.5
 protobuf==3.13.0
 pyasn1==0.4.8
 pyasn1-modules==0.2.7
-pycocotools @ git+https://github.com/philferriere/cocoapi.git@2929bd2ef6b451054755dfd7ceb09278f935f7ad#subdirectory=PythonAPI
 pyglet==1.5.0
 Pygments==2.6.1
 PyJWT==1.7.1
