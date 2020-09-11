@@ -3,13 +3,10 @@ import numpy as np
 import random
 import os
 import cv2
-from imantics import Polygons, Mask
-import sys
-import math
 from pixellib.mask_rcnn import MaskRCNN
 from pixellib.config import Config
 import colorsys
-import time
+
 
 from skimage import measure
 
@@ -90,12 +87,6 @@ def random_colors(N, bright=True):
 
 
 def apply_mask(image, mask, color, alpha=0.5): #alpha = opacity
-
-
-
-    polygon_mask = Mask(mask).polygons()
-
-
 
     for c in range(3):
 
