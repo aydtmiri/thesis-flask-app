@@ -1,1 +1,1 @@
-web: gunicorn thesis-flask-model:app
+web: gunicorn app:app
