@@ -48,9 +48,6 @@ Keras==2.3.1
 kiwisolver==1.2.0
 labelme2coco==0.1.2
 Markdown==3.1.1
-mkl-fft==1.1.0
-mkl-random==1.1.1
-mkl-service==2.3.0
 mpmath==1.1.0
 nbformat==5.0.7
 oauthlib==3.1.0
