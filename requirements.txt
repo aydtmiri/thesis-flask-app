@@ -22,6 +22,7 @@ oauthlib==3.1.0
 olefile==0.46
 onnx==1.5.0
 opencv-python==4.3.0.38
+opencv-python-headless==4.4.0.42
 pixellib==0.3.0
 scikit-image==0.16.2
 sympy==1.6.2
