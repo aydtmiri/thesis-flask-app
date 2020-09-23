@@ -1,14 +1,13 @@
 import cv2
 import numpy as np
+from json import JSONEncoder
 import random
 import os
 import cv2
+from cffi.backend_ctypes import xrange
 from pixellib.mask_rcnn import MaskRCNN
 from pixellib.config import Config
-import colorsys
-
-
-from skimage import measure
+import time
 
 
 class configuration(Config):
@@ -19,6 +18,13 @@ coco_config = configuration(BACKBONE="resnet101", NUM_CLASSES=81, class_names=["
                             IMAGE_MAX_DIM=1024, IMAGE_MIN_DIM=800, IMAGE_RESIZE_MODE="square", GPU_COUNT=1)
 
 
+class NumpyArrayEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return JSONEncoder.default(self, obj)
+
+
 class instance_segmentation():
     def __init__(self):
         self.model_dir = os.getcwd()
@@ -27,14 +33,16 @@ class instance_segmentation():
         self.model = MaskRCNN(mode="inference", model_dir=self.model_dir, config=coco_config)
         self.model.load_weights(model_path, by_name=True)
 
-    def segmentImage(self, image_path, show_bboxes=False, output_image_name=None, verbose=None, preferred_classes = []):
+    def segmentImage(self, image_path, output_image_name=None, verbose=None, preferred_classes=[]):
 
         image = cv2.imread(image_path)
         new_img = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         # Run detection
         if verbose is not None:
             print("Processing image...")
+        start = time.process_time()
         results = self.model.detect([new_img])
+        print(time.process_time() - start)
 
         coco_config.class_names = ['BG', 'person', 'bicycle', 'car', 'motorcycle', 'airplane',
                                    'bus', 'train', 'truck', 'boat', 'traffic light',
@@ -52,110 +60,137 @@ class instance_segmentation():
                                    'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors',
                                    'teddy bear', 'hair drier', 'toothbrush']
         r = results[0]
-        if show_bboxes == False:
 
-            # apply segmentation mask
-            output = display_instances(image, r['rois'], r['masks'], r['class_ids'], coco_config.class_names, preferred_classes)
-            #
-            if output_image_name is not None:
-                cv2.imwrite(output_image_name, output)
-                print("Processed image saved successfully in your current working directory.")
-            return r, output
+        # apply segmentation mask
+        image, box_coordinates, class_labels = display_instances(image, r['rois'], r['masks'], r['class_ids'],
+                                                                 coco_config.class_names, preferred_classes)
 
-        else:
-            # apply segmentation mask with bounding boxes
-            output = display_box_instances(image, r['rois'], r['masks'], r['class_ids'], coco_config.class_names,
-                                           r['scores'])
+        if output_image_name is not None:
+            cv2.imwrite(output_image_name, image)
+            print("Processed image saved successfully in your current working directory.")
 
-            if output_image_name is not None:
-                cv2.imwrite(output_image_name, output)
-                print("Processed Image saved successfully in your current working directory.")
-            return r, output
+            return image, box_coordinates, class_labels
 
 
-def random_colors(N, bright=True):
-    """
-    Generate random colors.
-    To get visually distinct colors, generate them in HSV space then
-    convert to RGB.
-    """
-    brightness = 1.0 if bright else 0.7
-    hsv = [(i / N, 1, brightness) for i in range(N)]
-    colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
-    random.shuffle(colors)
-    return colors
-
-
-def apply_mask(image, mask, color, alpha=0.5): #alpha = opacity
-
-    for c in range(3):
-
-        image[:, :, c] = np.where(mask == 1,
-                                  image[:, :, c] *
-                                  (1 - alpha) + alpha * color[c] * 255,
-                                  image[:, :, c])
-    return image
-
-
-def display_instances(image, boxes, masks, class_ids, class_name,preferred_classes):
-
-    get_masks_of_preferred_class(masks,class_name,preferred_classes)
-
-    # detmerine wheteher there are more than 3 instances. if that's the case, set n_instances to 3
+def display_instances(image, boxes, masks, class_ids, class_name, preferred_classes):
+    # determine whether there are more than 3 instances. if that's the case, set n_instances to 3
     if boxes.shape[0] < 3:
         n_instances = boxes.shape[0]
     else:
         n_instances = 3
 
-    colors = random_colors(n_instances)
+    # -------- get three masks and consider pref classes -----------
+    masks_list, indices = get_masks_of_preferred_class(masks, class_name, class_ids, preferred_classes, n_instances)
 
     if not n_instances:
         print('NO INSTANCES TO DISPLAY')
     else:
         assert boxes.shape[0] == masks.shape[-1] == class_ids.shape[0]
 
-    for i, color in enumerate(colors):
-        mask = masks[:, :, i]
-        print(class_name[class_ids[i]]) #Classnames of mask
+        colors = random_color()
 
-        image = apply_mask(image, mask, color)
+    box_coordinates = [[] for _ in xrange(n_instances)]
+    class_labels = []
 
-    return image
+    for i in range(n_instances):
+        draw_contour_of_mask(masks_list[i], image, colors[i])
 
+        box_coordinates[i] = boxes[indices[i]]
 
-def get_masks_of_preferred_class(masks,classes, preferred_classes):
+        class_labels.append(class_name[class_ids[indices[i]]])
 
-    index = classes.index(preferred_classes)
-    print("index", index)
-
-
-def display_box_instances(image, boxes, masks, class_ids, class_name, scores):
-
-    # detmerine wheteher there are more than 3 instances. if that's the case, set n_instances to 3
-    if boxes.shape[0] < 3:
-        n_instances = boxes.shape[0]
-    else:
-        n_instances = 3
-    colors = random_colors(n_instances)
-
-    assert boxes.shape[0] == masks.shape[-1] == class_ids.shape[0]
-
-    for i, color in enumerate(colors):
-        if not np.any(boxes[i]):
-            continue
-
-        y1, x1, y2, x2 = boxes[i]
-        label = class_name[class_ids[i]]
-        score = scores[i] if scores is not None else None
-        caption = '{} {:.2f}'.format(label, score) if score else label
-        mask = masks[:, :, i]
-
-        image = apply_mask(image, mask, color)
-        color_rec = [int(c) for c in np.array(colors[i]) * 255]
-        image = cv2.rectangle(image, (x1, y1), (x2, y2), color_rec, 2)
-        image = cv2.putText(
-            image, caption, (x1, y1), cv2.FONT_HERSHEY_COMPLEX, 0.5, color=(255, 255, 255))
-
-    return image
+    return image, np.asarray(box_coordinates), class_labels
 
 
+def draw_contour_of_mask(mask, image, color):
+    mask = mask.astype(np.uint8)
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(image, contours, -1, color, 3, cv2.LINE_8, hierarchy, 100)
+
+
+def random_color():
+    r = (255, random.randrange(50, 255), random.randrange(50, 255))
+    g = (random.randrange(50, 255), 255, random.randrange(50, 255))
+    b = (random.randrange(50, 255), random.randrange(50, 255), 255)
+    rgb = [r, g, b]
+    return rgb
+
+
+def get_masks_of_preferred_class(masks, classes, class_ids, preferred_classes, n_instances):
+    indices_preferred_classes = []
+    indices_preferred_masks = []
+
+    print(preferred_classes)
+
+    for i in range(len(preferred_classes)):
+        try:
+            class_id = classes.index(preferred_classes[i])
+        except  ValueError:
+            print("Class ", preferred_classes[i], "couldn't be found in class array.")
+
+        else:
+            try:
+                print(class_ids)
+                indices_preferred_classes.append(class_ids.tolist().index(class_id))
+
+            except ValueError:
+                print("Class ", i, "couldn't be found in class array.")
+
+        print(indices_preferred_masks)
+
+    # --- for every preferred class ---
+    for j in range(len(indices_preferred_classes)):
+
+        # --- set found_index true (init) ---
+        last_found_index = 0
+        start_search_index = 0
+
+        # --- as long as no index was found ---
+        while len(indices_preferred_masks) < n_instances:
+            # --- try to find a mask of preferred class ---
+            if last_found_index == 0 and start_search_index == 0:
+                start_search_index = 0
+            elif last_found_index == len(class_ids) - 1:
+                break
+            else:
+                start_search_index = last_found_index + 1
+
+            try:
+                last_found_index = class_ids.tolist().index(indices_preferred_classes[j], start_search_index)
+                indices_preferred_masks.append(last_found_index)
+                start_search_index += 1
+
+            except ValueError:
+                print("No class with id ", indices_preferred_classes[j], " found.")
+                break;
+            else:
+                print("Class with id ", indices_preferred_classes[j], " found.")
+
+    # --- check if there are less than max. 3 masks. if so, fill list with random masks ---
+    if len(indices_preferred_masks) < n_instances:
+        # --- for every missing mask index ---
+        for k in range(3 - len(indices_preferred_masks)):
+            search_for_index = True
+
+            # --- search for an index that is not already in list ---
+            while search_for_index:
+                # --- get random index ---
+                random_mask_index = random.randrange(len(class_ids))
+
+                # --- check if random index is already in mask list. if so, continue search ---
+                try:
+                    _ = indices_preferred_masks.index(random_mask_index)
+
+                except ValueError:
+                    # --- add random mask to list ---
+                    indices_preferred_masks.append(random_mask_index)
+                    search_for_index = False
+
+    masks_list = []
+
+    for l in range(len(indices_preferred_masks)):
+        masks_list.append(masks[:, :, indices_preferred_masks[l]])
+
+    print("indices_preferred_masks", indices_preferred_masks)
+
+    return masks_list, indices_preferred_masks
