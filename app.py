@@ -34,15 +34,15 @@ class InstanceSegmentation(Resource):
             img = Image.open(image_data)
 
             # save image
-            img.save(INPUT_IMAGE)
+            img.save("input.jpg")
 
             preferred_classes = request.json['data'][0]['classes']
             instance_segment_image = instance_segmentation()
-            instance_segment_image.load_model(INSTANCE_MODEL)
+            instance_segment_image.load_model("./mask_rcnn_coco.h5")
 
             try:
                 image, box_coordinates, class_labels = instance_segment_image.segmentImage(INPUT_IMAGE,
-                                                                                           output_image_name=OUTPUT_IMAGE,
+                                                                                           output_image_name="output.jpg",
                                                                                            preferred_classes=preferred_classes)
             except Exception as e:
                 return {"output_image": "", "box_coordinates": "",
