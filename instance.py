@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 from json import JSONEncoder
 import random
@@ -7,7 +6,7 @@ import cv2
 from cffi.backend_ctypes import xrange
 from pixellib.mask_rcnn import MaskRCNN
 from pixellib.config import Config
-import time
+
 
 
 class configuration(Config):
@@ -40,9 +39,7 @@ class instance_segmentation():
         # Run detection
         if verbose is not None:
             print("Processing image...")
-        start = time.process_time()
         results = self.model.detect([new_img])
-        print(time.process_time() - start)
 
         coco_config.class_names = ['BG', 'person', 'bicycle', 'car', 'motorcycle', 'airplane',
                                    'bus', 'train', 'truck', 'boat', 'traffic light',
@@ -120,33 +117,24 @@ def get_masks_of_preferred_class(masks, classes, class_ids, preferred_classes, n
     indices_preferred_classes = []
     indices_preferred_masks = []
 
-    print(preferred_classes)
+    print("recognized classes : ", class_ids)
 
     for i in range(len(preferred_classes)):
         try:
-            class_id = classes.index(preferred_classes[i])
-        except  ValueError:
+            indices_preferred_classes.append(classes.index(preferred_classes[i]))
+        except ValueError:
             print("Class ", preferred_classes[i], "couldn't be found in class array.")
 
-        else:
-            try:
-                print(class_ids)
-                indices_preferred_classes.append(class_ids.tolist().index(class_id))
 
-            except ValueError:
-                print("Class ", i, "couldn't be found in class array.")
-
-        print(indices_preferred_masks)
 
     # --- for every preferred class ---
     for j in range(len(indices_preferred_classes)):
-
         # --- set found_index true (init) ---
         last_found_index = 0
         start_search_index = 0
 
         # --- as long as no index was found ---
-        while len(indices_preferred_masks) < n_instances:
+        while len(indices_preferred_masks) <= n_instances:
             # --- try to find a mask of preferred class ---
             if last_found_index == 0 and start_search_index == 0:
                 start_search_index = 0
@@ -166,10 +154,11 @@ def get_masks_of_preferred_class(masks, classes, class_ids, preferred_classes, n
             else:
                 print("Class with id ", indices_preferred_classes[j], " found.")
 
-    # --- check if there are less than max. 3 masks. if so, fill list with random masks ---
-    if len(indices_preferred_masks) < n_instances:
+    # --- check if there are less than max. n_instances. if so, fill list with random masks ---
+
+    if len(indices_preferred_masks) <= n_instances:
         # --- for every missing mask index ---
-        for k in range(3 - len(indices_preferred_masks)):
+        for k in range(n_instances - len(indices_preferred_masks)):
             search_for_index = True
 
             # --- search for an index that is not already in list ---
@@ -187,10 +176,8 @@ def get_masks_of_preferred_class(masks, classes, class_ids, preferred_classes, n
                     search_for_index = False
 
     masks_list = []
-
     for l in range(len(indices_preferred_masks)):
         masks_list.append(masks[:, :, indices_preferred_masks[l]])
 
-    print("indices_preferred_masks", indices_preferred_masks)
 
     return masks_list, indices_preferred_masks

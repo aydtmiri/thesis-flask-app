@@ -23,8 +23,8 @@ api = Api(app)
 class InstanceSegmentation(Resource):
     def post(self):
         if request.json:
-
             post_request = request.json['data'][0]
+
             # get base64 string of image from json request
             image = post_request['image']
 
@@ -36,17 +36,17 @@ class InstanceSegmentation(Resource):
             # save image
             img.save(INPUT_IMAGE)
 
-            preferred_classes = post_request['classes']
+            preferred_classes = request.json['data'][0]['classes']
             instance_segment_image = instance_segmentation()
             instance_segment_image.load_model(INSTANCE_MODEL)
 
-            #try:
-            image, box_coordinates, class_labels = instance_segment_image.segmentImage(INPUT_IMAGE,
+            try:
+                image, box_coordinates, class_labels = instance_segment_image.segmentImage(INPUT_IMAGE,
                                                                                            output_image_name=OUTPUT_IMAGE,
                                                                                            preferred_classes=preferred_classes)
-            #except Exception as e:
-                #return {"output_image": "", "box_coordinates": "",
-                        #"class_labels": "", "error": format(e)}
+            except Exception as e:
+                return {"output_image": "", "box_coordinates": "",
+                        "class_labels": "", "error": format(e)}
 
             with open(OUTPUT_IMAGE, "rb") as img_file:
                 # convert processed image to base64
