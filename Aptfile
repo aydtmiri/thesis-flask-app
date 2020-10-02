@@ -1,5 +1,6 @@
 libsm6
 libxrender1
+libgl1-mesa-glx
 libfontconfig1
 libice6
 libpq-dev
