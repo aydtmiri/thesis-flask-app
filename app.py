@@ -11,8 +11,8 @@ from instance import instance_segmentation
 
 INSTANCE_MODEL = "mask_rcnn_coco.h5"
 
-INPUT_IMAGE = "images/input.jpg"
-OUTPUT_IMAGE = "output_images/output.jpg"
+INPUT_IMAGE = "input.jpg"
+OUTPUT_IMAGE = "output.jpg"
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
